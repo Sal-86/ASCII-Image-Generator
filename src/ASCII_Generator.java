@@ -1,16 +1,9 @@
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
-
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-
-import java.io.*;
+import java.io.PrintWriter;
 import java.util.*;
-
 
 /**
  * Generates a printed "image" comprised of ASCII characters
@@ -28,6 +21,8 @@ public final class ASCII_Generator {
 
     /**
      * Gets user input for file path name of image
+     * @return
+     *          name of the image file
      */
     private static String getFileName() {
         // Gets user input for file path name
@@ -39,33 +34,54 @@ public final class ASCII_Generator {
     }
 
     /**
+     * Calculates the brightness of each pixel as a single value
      * 
-     * @param w
-     *          the image's width in pixels
-     * @param h
-     *          the image's height in pixels
+     * @param r
+     *          value of red
+     * @param g
+     *          value of green
+     * @param b
+     *          value of blue
+     * @return
+     *          value of brightness, 0-255
      */
-    private static void populateArray(int w, int h, BufferedImage image) {
-        int[][][] rgbArray = new int[h][w][3];
+    private static int calculateBrightness (int r, int g, int b){
+        // Implements the "average" approach for calculating brightness
+        int brightness = (r + g + b) / 3;
+        return brightness;
+    }
 
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
+    /**
+     * 
+     * @param element
+     *              brightness value of a pixel
+     * @return
+     *              corresponding ASCII character
+     */
+    private static String chooseCharacter (int element) {
+    // String ASCII = "`^\",:;Il!i~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+    String[] ASCII = {"`", "^", "\"", ",", ":", ";", "I", "l", "!", "i", "~", "+", "_", "-", "?", "]", "[", "}", "{", "1", ")", "(", "|", "\\", "/", "t", "f", "j", "r", "x", "n", "u", "v", "c", "z", "X", "Y", "U", "J", "C", "L", "Q", "0", "O", "Z", "m", "w", "q", "p", "d", "b", "k", "h", "a", "o", "*", "#", "M", "W", "&", "8", "%", "B", "@", "$"};
 
-                // RGB value for each pixel
-                int pixel = image.getRGB(x,y);
+    double temp = 255/65, benchmark = 0;
+    int counter = 0;
+    String chosenChar = "";
 
-                // Separate binary (AAAAAAAARRRRRRRRGGGGGGGGBBBBBBBB) into correct components
-                int red = (pixel >> 16) & 0xff;
-                int green = (pixel >> 8) & 0xff;
-                int blue = (pixel) & 0xff;
-
-                // Store values in array
-                rgbArray[y][x][0] = red;
-                rgbArray[y][x][1] = green;
-                rgbArray[y][x][2] = blue;
+        // Creates ranges of brightness values that correspond to each character in the ASCII String array
+        while (temp <= 255 && counter < 65) {
+            if ( element < temp && element >= benchmark){
+                chosenChar = ASCII[counter];
             }
+        temp += 255/65;
+        benchmark += 255/65;
+        counter++;
         }
-        System.out.print("Successful iteration, RGB data stored!");
+
+    // Ensures every pixel is represented by a character
+    if ( chosenChar.equals("")){
+        chosenChar = "x";
+    }
+
+    return chosenChar;
     }
 
     /**
@@ -88,12 +104,63 @@ public final class ASCII_Generator {
             }
 
         // Get image dimensions
-        int width = image.getWidth();
-        int height = image.getHeight();
-        System.out.println("Dimensions are: " + width + " x " + height);
+        int w = image.getWidth();
+        int h = image.getHeight();
+        System.out.println("Dimensions are: " + w + " x " + h);
 
-        // Populate 2D matrix with numerical brightness data for each pixel
-        populateArray(width, height, image);
+        // Populate array with brightness value using RGB data for each pixel
+        int[][][] rgbArray = new int[h][w][3];  // Unused thus far.
+        int[][] brightnessArray = new int[h][w];
 
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+
+                    // RGB value for each pixel
+                    int pixel = image.getRGB(x,y);
+
+                    // Separate binary (AAAAAAAARRRRRRRRGGGGGGGGBBBBBBBB) into correct components
+                    int red = (pixel >> 16) & 0xff;
+                    int green = (pixel >> 8) & 0xff;
+                    int blue = (pixel) & 0xff;
+
+                    // Store values in RGB array. RGB array is not inherently used.
+                    rgbArray[y][x][0] = red;
+                    rgbArray[y][x][1] = green;
+                    rgbArray[y][x][2] = blue;
+
+                    // Use RGB values to calculate brightness, store in array
+                    brightnessArray[y][x] = calculateBrightness(red, green, blue);
+                }
+            }
+
+        // Create text file for output
+        PrintWriter fileWriter = new PrintWriter("PrintedImage.txt", "UTF-8");
+
+        // Determine ASCII character to represent each pixel
+        String[][] generatedImage = new String[h][w];
+        int i = 0, j = 0;
+
+        for (int[] row : brightnessArray) {
+            for (int element : row){
+                generatedImage[j][i] = chooseCharacter(element);
+
+                // Print each character three times to help counteract squashing/stretching
+                fileWriter.print(chooseCharacter(element));
+                fileWriter.print(chooseCharacter(element));
+                fileWriter.print(chooseCharacter(element));
+
+                    if (i<h){
+                        i++;
+                    }
+            }
+            fileWriter.println(); // Create a new line after each printed row
+
+            if (j<w){
+                j++;
+            }
+        }
+
+        System.out.println("ASCIIs determined. Image is printed in .txt file!");
+        fileWriter.close();
     }
 }
